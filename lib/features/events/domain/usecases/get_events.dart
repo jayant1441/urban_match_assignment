@@ -7,6 +7,7 @@ class GetEventsUseCase {
   GetEventsUseCase(this._repo);
 
   Future<Either<Exception, List<Event>>> call() {
+    // filter
     return _repo.getEvents();
   }
 }

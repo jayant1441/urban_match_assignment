@@ -17,6 +17,6 @@ class EventModel {
 
   Map<String, dynamic> toJson() => _$EventModelToJson(this);
 
-  // Convert back to domain
+  // Convert to domain entity
   Event toEntity() => Event(name: name, time: time);
 }

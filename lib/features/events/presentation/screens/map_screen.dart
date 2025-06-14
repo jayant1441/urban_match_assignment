@@ -46,7 +46,6 @@ class _MapWithBottomSheetScreenState
         ref.read(eventNotifierProvider.notifier).fetch();
 
         setState(() {
-          // force FlutterMap to rebuild & re-request tiles
           _mapKey = UniqueKey();
         });
       }
@@ -100,6 +99,7 @@ class _MapWithBottomSheetScreenState
             ),
           ),
 
+          // Compass button
           Positioned(
             top: 16,
             right: 16,
@@ -258,62 +258,45 @@ class _MapWithBottomSheetScreenState
           final e = filtered[i];
           final origIdx = state.events.indexOf(e);
           final selected = origIdx == _selectedIndex;
-          return InkWell(
+
+          return ListTile(
             onTap: () {
               setState(() {
                 _selectedIndex = origIdx;
                 _mapController.move(_markerPoints[origIdx], 15);
               });
             },
-            child: Container(
-              color: selected ? Colors.orange.withOpacity(0.2) : null,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: const BoxDecoration(
-                      color: Colors.orange,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.whatshot,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          e.name,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          DateFormat('MMM d • h:mm a').format(e.time),
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Icon(
-                    Icons.arrow_forward_ios,
-                    color: Colors.white70,
-                    size: 16,
-                  ),
-                ],
+            selected: selected,
+            selectedTileColor: Colors.orange.withValues(alpha: 0.2),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 0,
+            ),
+            leading: Container(
+              width: 36,
+              height: 36,
+              decoration: const BoxDecoration(
+                color: Colors.orange,
+                shape: BoxShape.circle,
               ),
+              child: const Icon(Icons.whatshot, color: Colors.white, size: 20),
+            ),
+            title: Text(
+              e.name,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              DateFormat('MMM d • h:mm a').format(e.time),
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              color: Colors.white70,
+              size: 16,
             ),
           );
         },
