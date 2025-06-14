@@ -6,24 +6,24 @@ import '../../domain/usecases/get_events.dart';
 
 sealed class EventState {
   const EventState();
-  factory EventState.initial() = Initial;
-  factory EventState.loading() = Loading;
-  factory EventState.loaded(List<Event> events) = Loaded;
-  factory EventState.error(String message) = Error;
+  factory EventState.initial() = InitialState;
+  factory EventState.loading() = LoadingState;
+  factory EventState.loaded(List<Event> events) = LoadedState;
+  factory EventState.error(String message) = ErrorState;
 }
 
-class Initial extends EventState {}
+class InitialState extends EventState {}
 
-class Loading extends EventState {}
+class LoadingState extends EventState {}
 
-class Loaded extends EventState {
+class LoadedState extends EventState {
   final List<Event> events;
-  Loaded(this.events);
+  LoadedState(this.events);
 }
 
-class Error extends EventState {
+class ErrorState extends EventState {
   final String message;
-  Error(this.message);
+  ErrorState(this.message);
 }
 
 class EventNotifier extends StateNotifier<EventState> {

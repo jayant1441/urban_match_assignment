@@ -21,9 +21,9 @@ class _MapWithBottomSheetScreenState
   late final StreamSubscription<List<ConnectivityResult>> _connSub;
   int? _selectedIndex;
   bool _showUpcoming = true;
+  Key _mapKey = UniqueKey();
 
-  // Sample marker coords around Delhi
-  final _markerPoints = const [
+  static const _markerPoints = [
     LatLng(28.6139, 77.2090),
     LatLng(28.6239, 77.2190),
     LatLng(28.6039, 77.1990),
@@ -33,20 +33,22 @@ class _MapWithBottomSheetScreenState
   @override
   void initState() {
     super.initState();
-
-    // 1️⃣ Initial load if already online
-    Connectivity().checkConnectivity().then((status) {
-      if (status.contains(ConnectivityResult.wifi) ||
-          status.contains(ConnectivityResult.mobile)) {
+    Connectivity().checkConnectivity().then((c) {
+      if (c.contains(ConnectivityResult.wifi) ||
+          c.contains(ConnectivityResult.mobile)) {
         ref.read(eventNotifierProvider.notifier).fetch();
       }
     });
 
-    // 2️⃣ Listen for connectivity changes
-    _connSub = Connectivity().onConnectivityChanged.listen((status) {
-      if (status.contains(ConnectivityResult.wifi) ||
-          status.contains(ConnectivityResult.mobile)) {
+    _connSub = Connectivity().onConnectivityChanged.listen((c) {
+      if (c.contains(ConnectivityResult.wifi) ||
+          c.contains(ConnectivityResult.mobile)) {
         ref.read(eventNotifierProvider.notifier).fetch();
+
+        setState(() {
+          // force FlutterMap to rebuild & re-request tiles
+          _mapKey = UniqueKey();
+        });
       }
     });
   }
@@ -61,17 +63,16 @@ class _MapWithBottomSheetScreenState
   Widget build(BuildContext context) {
     final state = ref.watch(eventNotifierProvider);
 
-    // Build markers, highlight selected
     final markers = List<Marker>.generate(_markerPoints.length, (i) {
-      final isSelected = i == _selectedIndex;
+      final selected = i == _selectedIndex;
       return Marker(
         point: _markerPoints[i],
-        width: isSelected ? 100 : 60,
-        height: isSelected ? 100 : 60,
+        width: selected ? 100 : 60,
+        height: selected ? 100 : 60,
         child: Icon(
-          Icons.location_on,
-          color: isSelected ? Colors.orange : Colors.red,
-          size: isSelected ? 48 : 32,
+          Icons.whatshot,
+          color: selected ? Colors.orange : Colors.orange.shade200,
+          size: selected ? 40 : 28,
         ),
       );
     });
@@ -79,18 +80,19 @@ class _MapWithBottomSheetScreenState
     return Scaffold(
       body: Stack(
         children: [
-          // ► Map
+          // Dark map
           Positioned.fill(
             child: FlutterMap(
+              key: _mapKey,
               mapController: _mapController,
               options: MapOptions(
                 initialCenter: _markerPoints[0],
-                initialZoom: 13.0,
+                initialZoom: 13,
               ),
               children: [
                 TileLayer(
                   urlTemplate:
-                      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
                   subdomains: const ['a', 'b', 'c'],
                 ),
                 MarkerLayer(markers: markers),
@@ -98,31 +100,57 @@ class _MapWithBottomSheetScreenState
             ),
           ),
 
-          // ► Bottom sheet
+          Positioned(
+            top: 16,
+            right: 16,
+            child: ClipOval(
+              child: Material(
+                color: Colors.black54, // semi-transparent background
+                child: InkWell(
+                  splashColor: Colors.orange.withValues(alpha: 0.5),
+                  onTap: () {
+                    _mapController.rotate(0);
+                    _mapController.move(LatLng(28.6139, 77.2090), 13);
+                  },
+                  child: const SizedBox(
+                    width: 60,
+                    height: 60,
+                    child: Icon(
+                      Icons.explore, // compass-style icon
+                      color: Colors.white,
+                      size: 32,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Bottom sheet with filters + list
           DraggableScrollableSheet(
             initialChildSize: 0.3,
             minChildSize: 0.3,
             maxChildSize: 0.5,
-            builder: (context, scrollController) => Container(
+            builder: (ctx, sc) => Container(
               decoration: const BoxDecoration(
-                color: Colors.white,
+                color: Colors.black87,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
                 boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black26)],
               ),
               child: Column(
                 children: [
-                  // ■ Drag handle
+                  // Drag handle
                   Container(
                     width: 40,
                     height: 6,
                     margin: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.grey[400],
+                      color: Colors.grey[700],
                       borderRadius: BorderRadius.circular(3),
                     ),
                   ),
 
-                  // ■ Filter chips
+                  // Filter chips
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16.0),
                     child: Row(
@@ -130,37 +158,41 @@ class _MapWithBottomSheetScreenState
                         ChoiceChip(
                           label: const Text('Upcoming'),
                           selected: _showUpcoming,
-                          onSelected: (_) {
-                            setState(() {
-                              _showUpcoming = true;
-                              _selectedIndex = null;
-                            });
-                          },
+                          selectedColor: Colors.orange,
+                          backgroundColor: Colors.grey[800]!,
+                          labelStyle: TextStyle(
+                            color: _showUpcoming
+                                ? Colors.white
+                                : Colors.white70,
+                          ),
+                          onSelected: (_) => setState(() {
+                            _showUpcoming = true;
+                            _selectedIndex = null;
+                          }),
                         ),
                         const SizedBox(width: 8),
                         ChoiceChip(
                           label: const Text('Past'),
                           selected: !_showUpcoming,
-                          onSelected: (_) {
-                            setState(() {
-                              _showUpcoming = false;
-                              _selectedIndex = null;
-                            });
-                          },
+                          selectedColor: Colors.orange,
+                          backgroundColor: Colors.grey[800]!,
+                          labelStyle: TextStyle(
+                            color: !_showUpcoming
+                                ? Colors.white
+                                : Colors.white70,
+                          ),
+                          onSelected: (_) => setState(() {
+                            _showUpcoming = false;
+                            _selectedIndex = null;
+                          }),
                         ),
                       ],
                     ),
                   ),
-                  const Divider(height: 1),
+                  const Divider(color: Colors.grey, height: 1),
 
-                  // ■ Animated content
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 500),
-                      switchInCurve: Curves.easeIn,
-                      child: _buildListContent(state, scrollController),
-                    ),
-                  ),
+                  // Event list
+                  Expanded(child: _buildList(state, sc)),
                 ],
               ),
             ),
@@ -170,86 +202,124 @@ class _MapWithBottomSheetScreenState
     );
   }
 
-  Widget _buildListContent(EventState state, ScrollController sc) {
+  Widget _buildList(EventState state, ScrollController sc) {
     final now = DateTime.now();
 
-    if (state is Loading) {
-      return Container(
-        key: const ValueKey('loading'),
-        alignment: Alignment.center,
-        child: const CircularProgressIndicator(),
+    if (state is LoadingState) {
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.orange),
       );
     }
 
-    if (state is Loaded) {
-      final filtered = state.events
-          .asMap()
-          .entries
-          .where(
-            (e) => _showUpcoming
-                ? e.value.time.isAfter(now)
-                : e.value.time.isBefore(now),
-          )
-          .toList();
-
-      if (filtered.isEmpty) {
-        return Container(
-          key: const ValueKey('empty'),
-          alignment: Alignment.center,
-          child: const Text('No events found'),
-        );
-      }
-
-      return Container(
-        key: const ValueKey('loaded'),
-        child: ListView.builder(
-          controller: sc,
-          itemCount: filtered.length,
-          itemBuilder: (ctx, idx) {
-            final origIdx = filtered[idx].key;
-            final e = filtered[idx].value;
-            final selected = origIdx == _selectedIndex;
-            return InkWell(
-              onTap: () {
-                setState(() {
-                  _selectedIndex = origIdx;
-                  _mapController.move(_markerPoints[origIdx], 15.0);
-                });
-              },
-              child: Container(
-                color: selected ? Colors.orange.withOpacity(0.2) : null,
-                child: ListTile(
-                  leading: const Icon(Icons.event),
-                  title: Text(e.name),
-                  subtitle: Text(DateFormat.yMMMd().add_jm().format(e.time)),
-                ),
-              ),
-            );
-          },
-        ),
-      );
-    }
-
-    if (state is Error) {
-      return Container(
-        key: const ValueKey('error'),
-        alignment: Alignment.center,
+    if (state is ErrorState) {
+      return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Failed to load events'),
+            const Text(
+              'Failed to load events',
+              style: TextStyle(color: Colors.white),
+            ),
             const SizedBox(height: 8),
             ElevatedButton(
-              onPressed: () {
-                ref.read(eventNotifierProvider.notifier).fetch();
-              },
-              child: const Text('Try Again'),
+              onPressed: () => ref.read(eventNotifierProvider.notifier).fetch(),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+              child: const Text(
+                'Try Again',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
           ],
         ),
       );
     }
 
-    return const SizedBox(key: ValueKey('initial'));
+    if (state is LoadedState) {
+      final filtered = state.events
+          .where(
+            (e) => _showUpcoming ? e.time.isAfter(now) : e.time.isBefore(now),
+          )
+          .toList();
+
+      if (filtered.isEmpty) {
+        return const Center(
+          child: Text(
+            'No events found',
+            style: TextStyle(color: Colors.white70),
+          ),
+        );
+      }
+
+      return ListView.builder(
+        controller: sc,
+        padding: EdgeInsets.zero,
+        itemCount: filtered.length,
+        itemBuilder: (ctx, i) {
+          final e = filtered[i];
+          final origIdx = state.events.indexOf(e);
+          final selected = origIdx == _selectedIndex;
+          return InkWell(
+            onTap: () {
+              setState(() {
+                _selectedIndex = origIdx;
+                _mapController.move(_markerPoints[origIdx], 15);
+              });
+            },
+            child: Container(
+              color: selected ? Colors.orange.withOpacity(0.2) : null,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Container(
+                    width: 36,
+                    height: 36,
+                    decoration: const BoxDecoration(
+                      color: Colors.orange,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.whatshot,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          e.name,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateFormat('MMM d • h:mm a').format(e.time),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.white70,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      );
+    }
+
+    return const SizedBox.shrink();
   }
 }
